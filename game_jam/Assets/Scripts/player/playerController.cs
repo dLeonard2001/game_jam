@@ -10,10 +10,10 @@ public class playerController : MonoBehaviour
 {
     [Header("Player Config")] 
     public float walkSpeed;
+    public float sprintSpeed;
+    public float slideSpeed;
     public float jumpForce;
-
-    private float sprintSpeed;
-    private float slideSpeed;
+    
     private float currentSpeed;
 
     private bool readyToJump;
@@ -40,16 +40,10 @@ public class playerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        
         inputManager = InputManager.newInstance();
 
-        sprintSpeed = walkSpeed * 1.75f;
-        slideSpeed = walkSpeed * 2.25f;
-
         currentSpeed = walkSpeed;
-
         slideTimer = maxSlideTimer;
-
         readyToSlide = true;
     }
 

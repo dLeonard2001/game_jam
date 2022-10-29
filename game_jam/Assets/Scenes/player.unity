@@ -421,7 +421,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   walkSpeed: 8
-  jumpForce: 15
+  sprintSpeed: 12
+  slideSpeed: 14
+  jumpForce: 20
   slideTimer: 0
   maxSlideTimer: 2
   slideCooldown: 0
