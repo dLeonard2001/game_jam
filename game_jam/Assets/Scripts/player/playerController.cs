@@ -9,8 +9,11 @@ using Vector3 = UnityEngine.Vector3;
 
 public class playerController : MonoBehaviour
 {
-
+    [Header("UI")] 
+    public GameObject panel;
     public TextMeshProUGUI speed;
+    public Sprite seed_key;
+    public Image key_display;
     
     [Header("Player Config")] 
     public float walkSpeed;
@@ -29,7 +32,7 @@ public class playerController : MonoBehaviour
     private float currentSpeed;
 
     private bool readyToJump;
-    private bool pauseGame;
+    private bool isPaused;
     private bool isGrounded;
     private bool isSliding;
     private bool isOnSlope;
@@ -69,12 +72,19 @@ public class playerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(inputManager.pause())
+            pauseGame(isPaused);
+
+        if (isPaused)
+            return;
+        
         if (iceplant_seed != null)
         {
             Vector3 moundPos = iceplant_seed.GetComponent<iceseed>().mound_pos;
             Vector3 distanceToMound = transform.position - moundPos;
             if (distanceToMound.magnitude < 2f)
             {
+                key_display.gameObject.SetActive(false);
                 seed_script.PuzzleSolved();
             }
         }
@@ -84,8 +94,6 @@ public class playerController : MonoBehaviour
         
         if (inputManager.jump() && isGrounded)
             readyToJump = true;
-        if (inputManager.pause())
-            pauseGame = true;
 
         if (inputManager.slide())
             isSliding = true;
@@ -120,8 +128,7 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
-                    slidePlayerAnimation(75f);
-                    
+
                     currentSpeed += slideDownSlopeMultipier;
                     
                     rb.AddForce(currentSpeed * speedMultiplier * (Vector2.left + Vector2.down), ForceMode2D.Force);
@@ -143,8 +150,7 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
-                    
+
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
                 }
@@ -174,8 +180,7 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
-                    slidePlayerAnimation(75f);
-                    
+
                     currentSpeed += slideDownSlopeMultipier;
 
                     rb.AddForce(currentSpeed * speedMultiplier * (Vector2.right + Vector2.down), ForceMode2D.Force);
@@ -195,8 +200,7 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
-                    
+
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
                 }
@@ -291,8 +295,29 @@ public class playerController : MonoBehaviour
         {
             iceplant_seed = col.gameObject;
             seed_script = iceplant_seed.GetComponent<iceseed>();
-            
+
+            key_display.sprite = seed_key;
+            key_display.gameObject.SetActive(true);
+
             col.gameObject.SetActive(false);
+        }
+    }
+
+    private void pauseGame(bool status)
+    {
+        if (status)
+        {
+            isPaused = false;
+            panel.SetActive(false);
+
+            Time.timeScale = 1;
+        }
+        else
+        {
+            isPaused = true;
+            panel.SetActive(true);
+
+            Time.timeScale = 0;
         }
     }
 }
