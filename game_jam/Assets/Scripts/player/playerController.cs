@@ -1,25 +1,38 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Numerics;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 public class playerController : MonoBehaviour
 {
+
+    public TextMeshProUGUI speed;
+    
     [Header("Player Config")] 
     public float walkSpeed;
-    public float sprintSpeed;
-    public float slideSpeed;
     public float jumpForce;
+    public float speedMultiplier;
+
+    [Header("Slope Config")] 
+    public float downSlopeMultiplier;
+    public float slideDownSlopeMultipier;
+    public float upSlopeReduction;
+    public float maxSlopeAngle;
     
+    private Vector3 slopeDirection;
+    private bool OnRightSlope;
+
     private float currentSpeed;
 
     private bool readyToJump;
     private bool pauseGame;
     private bool isGrounded;
     private bool isSliding;
+    private bool isOnSlope;
 
     [Header("Slide Config")] 
     public float slideTimer;
@@ -35,7 +48,11 @@ public class playerController : MonoBehaviour
     private RaycastHit2D slopeHit;
 
     private InputManager inputManager;
-    
+
+    [Header("Puzzle Inventory")] 
+    public GameObject iceplant_seed;
+    public iceseed seed_script;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -45,11 +62,24 @@ public class playerController : MonoBehaviour
         currentSpeed = walkSpeed;
         slideTimer = maxSlideTimer;
         readyToSlide = true;
+
+        iceplant_seed = null;
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (iceplant_seed != null)
+        {
+            Vector3 moundPos = iceplant_seed.GetComponent<iceseed>().mound_pos;
+            Vector3 distanceToMound = transform.position - moundPos;
+            if (distanceToMound.magnitude < 2f)
+            {
+                seed_script.PuzzleSolved();
+            }
+        }
+
+        speed.text = "Speed: " + rb.velocity.magnitude;
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
         
         if (inputManager.jump() && isGrounded)
@@ -71,53 +101,109 @@ public class playerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        isOnSlope = OnSlope();
+
         if (inputManager.moveLeft())
         {
-            transform.rotation = Quaternion.Euler(0f, -180f,0f);
-            if (inputManager.sprint())
+            slopeDirection = GetSlopeMoveDirection(Vector2.left);
+            
+            if (slopeDirection.y < 0 && slopeDirection.x < 0)
             {
-                if (isSliding && slideTimer > 0)
+                OnRightSlope = true;
+            }
+            else
+            {
+                OnRightSlope = false;
+            }
+
+            if (OnRightSlope)
+            {
+                if (slopeDirection.y < 0 && isSliding)
                 {
-                    currentSpeed = slideSpeed;
-                    rb.AddForce(Vector2.left * currentSpeed, ForceMode2D.Impulse);
-                    slideTimer -= Time.fixedDeltaTime;
-                    
                     slidePlayerAnimation(75f);
-                }
-                else
+                    
+                    currentSpeed += slideDownSlopeMultipier;
+                    
+                    rb.AddForce(currentSpeed * speedMultiplier * (Vector2.left + Vector2.down), ForceMode2D.Force);
+                }else if (slopeDirection.y < 0)
                 {
-                    currentSpeed = sprintSpeed;
-                    rb.AddForce(Vector2.left * currentSpeed, ForceMode2D.Impulse);
+                    currentSpeed += downSlopeMultiplier;
+                    
+                    rb.AddForce(currentSpeed * speedMultiplier * (Vector2.left + Vector2.down), ForceMode2D.Force);
+                }
+            }
+            else if (isOnSlope)
+            {
+                if (slopeDirection.y > 0)
+                {
+                    rb.AddForce(currentSpeed * (Vector2.left + Vector2.up), ForceMode2D.Force);
                 }
             }
             else
             {
-                currentSpeed = walkSpeed;
-                rb.AddForce(Vector2.left * currentSpeed, ForceMode2D.Impulse);
+                if (isSliding && slideTimer > 0)
+                {
+                    slidePlayerAnimation(75f);
+                    
+                    rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Impulse);
+                    slideTimer -= Time.fixedDeltaTime;
+                }
+                else
+                {
+                    rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Force);
+                } 
             }
         }else if (inputManager.moveRight())
         {
-            transform.rotation = Quaternion.Euler(0f, 0f,0f);
-            if (inputManager.sprint())
+            slopeDirection = GetSlopeMoveDirection(Vector2.right);
+            
+            if (slopeDirection.x > 0 && slopeDirection.y > 0)
             {
-                if (isSliding && slideTimer > 0)
+                OnRightSlope = true;
+            }
+            else
+            {
+                OnRightSlope = false;
+            }
+
+            if (isOnSlope && OnRightSlope)
+            {
+                rb.AddForce(currentSpeed * speedMultiplier * (Vector2.right + Vector2.up), ForceMode2D.Force);
+            }
+            else if (isOnSlope)
+            {
+                if (slopeDirection.y < 0 && isSliding)
                 {
-                    currentSpeed = slideSpeed;
-                    rb.AddForce(Vector2.right * currentSpeed, ForceMode2D.Impulse);
-                    slideTimer -= Time.fixedDeltaTime;
-                    
                     slidePlayerAnimation(75f);
+                    
+                    currentSpeed += slideDownSlopeMultipier;
+
+                    rb.AddForce(currentSpeed * speedMultiplier * (Vector2.right + Vector2.down), ForceMode2D.Force);
                 }
-                else
+                else if (slopeDirection.y < 0)
                 {
-                    currentSpeed = sprintSpeed;
-                    rb.AddForce(Vector2.right * currentSpeed, ForceMode2D.Impulse);
+                    currentSpeed += downSlopeMultiplier;
+
+                    rb.AddForce(currentSpeed * (Vector2.right + Vector2.down), ForceMode2D.Force);
+                }
+                else if (slopeDirection.y > 0)
+                {
+                    rb.AddForce(currentSpeed * (Vector2.right + Vector2.up), ForceMode2D.Force);
                 }
             }
             else
             {
-                currentSpeed = walkSpeed;
-                rb.AddForce(Vector2.right * currentSpeed, ForceMode2D.Impulse);
+                if (isSliding && slideTimer > 0)
+                {
+                    slidePlayerAnimation(75f);
+                    
+                    rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Impulse);
+                    slideTimer -= Time.fixedDeltaTime;
+                }
+                else
+                {
+                    rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Force);
+                }
             }
         }
 
@@ -128,17 +214,36 @@ public class playerController : MonoBehaviour
         }
         else
         {
-            rb.AddForce(Vector2.down, ForceMode2D.Impulse);
+            rb.AddForce(Vector3.down, ForceMode2D.Force);
         }
 
-        if (rb.velocity.magnitude > currentSpeed)
+        // if our speed has drastically changed
+            // reduce our speed slowly over time
+                // EX.
+                    // 11 -> 10.9 -> 10.8, instead of, 11 -> 9 or 11 -> 5
+        if (Mathf.Abs(currentSpeed - walkSpeed) > 2f)
         {
-            if (!isGrounded)
-                currentSpeed = jumpForce;
+            StopAllCoroutines();
+            StartCoroutine(ReduceMovementSpeedOverTime());
+        }
+        
+        // if (on a slope)
+            // maintain speed based on the increase in our speed
+        // else if(speed > currentspeed)
+            // max our speed out to the current speed
+            
+        if (OnSlope())
+        {
+            if (rb.velocity.magnitude > currentSpeed)
+                rb.velocity = rb.velocity.normalized * currentSpeed;
+        }
+        else if(rb.velocity.magnitude > currentSpeed)
+        {
             Vector2 flatVel = new Vector2(rb.velocity.x, rb.velocity.y);
             Vector2 limitedVel = currentSpeed * flatVel.normalized;
             rb.velocity = new Vector2(limitedVel.x, rb.velocity.y);
         }
+        
     }
 
     public void slidePlayerAnimation(float rotation)
@@ -152,13 +257,42 @@ public class playerController : MonoBehaviour
             return false;
 
         slopeHit = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
-
+        
         if (slopeHit)
         {
             if (slopeHit.normal != Vector2.up)
-                return true;
+            {
+                return 180 - Vector2.Angle(slopeHit.normal, Vector2.down) < maxSlopeAngle;
+            }
         }
         
         return false;
+    }
+
+    private Vector3 GetSlopeMoveDirection(Vector2 direction)
+    {
+        return Vector3.ProjectOnPlane(direction, slopeHit.normal).normalized;
+    }
+
+    private IEnumerator ReduceMovementSpeedOverTime()
+    {
+        while (currentSpeed > walkSpeed)
+        {
+            currentSpeed -= 0.01f;
+            yield return null;
+        }
+
+        currentSpeed = walkSpeed;
+    }
+
+    private void OnTriggerEnter2D(Collider2D col)
+    {
+        if (col.CompareTag("iceplant_seed"))
+        {
+            iceplant_seed = col.gameObject;
+            seed_script = iceplant_seed.GetComponent<iceseed>();
+            
+            col.gameObject.SetActive(false);
+        }
     }
 }
