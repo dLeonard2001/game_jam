@@ -2511,7 +2511,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3938588106758154314, guid: 9546468caae88844e8e243ea8baea042, type: 3}
       propertyPath: m_Name
-      value: Text (TMP)
+      value: key_holder
       objectReference: {fileID: 0}
     - target: {fileID: 3938588106758154317, guid: 9546468caae88844e8e243ea8baea042, type: 3}
       propertyPath: m_Pivot.x
@@ -2665,7 +2665,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 6364692292406753380, guid: 464c8bd017842db4d81d7e06b6b493b6, type: 3}
       propertyPath: m_Name
-      value: Panel
+      value: pausePanel
       objectReference: {fileID: 0}
     - target: {fileID: 6364692292406753380, guid: 464c8bd017842db4d81d7e06b6b493b6, type: 3}
       propertyPath: m_IsActive
