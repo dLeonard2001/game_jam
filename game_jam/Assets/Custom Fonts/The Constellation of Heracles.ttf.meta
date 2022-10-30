@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: 166b64274d6542c4398ccebbe4004dd5
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - The Constellation of Heracles
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: f5c64ac3430ab0e4199d34b8ab7c8af6, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
