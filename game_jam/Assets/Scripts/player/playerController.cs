@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Numerics;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -36,6 +37,7 @@ public class playerController : MonoBehaviour
     private bool isGrounded;
     private bool isSliding;
     private bool isOnSlope;
+    private Vector2 currentDirection;
 
     [Header("Slide Config")] 
     public float slideTimer;
@@ -113,7 +115,9 @@ public class playerController : MonoBehaviour
 
         if (inputManager.moveLeft())
         {
-            slopeDirection = GetSlopeMoveDirection(Vector2.left);
+            currentDirection = Vector2.left;
+            
+            slopeDirection = GetSlopeMoveDirection(currentDirection);
             
             if (slopeDirection.y < 0 && slopeDirection.x < 0)
             {
@@ -161,7 +165,8 @@ public class playerController : MonoBehaviour
             }
         }else if (inputManager.moveRight())
         {
-            slopeDirection = GetSlopeMoveDirection(Vector2.right);
+            currentDirection = Vector2.right;
+            slopeDirection = GetSlopeMoveDirection(currentDirection);
             
             if (slopeDirection.x > 0 && slopeDirection.y > 0)
             {
@@ -213,7 +218,7 @@ public class playerController : MonoBehaviour
 
         if (readyToJump)
         {
-            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
             readyToJump = false;
         }
         else
@@ -266,6 +271,7 @@ public class playerController : MonoBehaviour
         {
             if (slopeHit.normal != Vector2.up)
             {
+                // Debug.Log(180 - Vector2.Angle(slopeHit.normal, Vector2.down) < maxSlopeAngle);
                 return 180 - Vector2.Angle(slopeHit.normal, Vector2.down) < maxSlopeAngle;
             }
         }
@@ -307,6 +313,9 @@ public class playerController : MonoBehaviour
     {
         if (status)
         {
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
+            
             isPaused = false;
             panel.SetActive(false);
 
@@ -314,6 +323,9 @@ public class playerController : MonoBehaviour
         }
         else
         {
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.Confined;
+            
             isPaused = true;
             panel.SetActive(true);
 
