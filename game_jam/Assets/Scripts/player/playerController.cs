@@ -118,7 +118,7 @@ public class playerController : MonoBehaviour
             if (distanceToMound.magnitude < 2f)
             {
                 count--;
-                Debug.Log(count);
+                
                 key_display[count].gameObject.SetActive(false);
                 seed_script.PuzzleSolved();
                 iceplant_seed = null;
@@ -141,7 +141,6 @@ public class playerController : MonoBehaviour
 
         if (slideTimer < maxSlideTimer && isGrounded && !isSliding)
         {
-            Debug.Log("done sliding");
             if(!inputManager.slide())
                 slideTimer = maxSlideTimer;
             resetBoxCD();
@@ -333,7 +332,7 @@ public class playerController : MonoBehaviour
         {
             if (slopeHit.normal != Vector2.up)
             {
-                // Debug.Log(180 - Vector2.Angle(slopeHit.normal, Vector2.down) < maxSlopeAngle);
+                
                 return 180 - Vector2.Angle(slopeHit.normal, Vector2.down) < maxSlopeAngle;
             }
         }
@@ -417,7 +416,6 @@ public class playerController : MonoBehaviour
     {
         StartCoroutine(increaseFontSize());
         
-        Debug.Log("setting up final puzzle");
         finalPuzzleIsActive = true;
         
         int num = Random.Range(0, first_area_possible_locations.Count);
