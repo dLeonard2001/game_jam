@@ -69,6 +69,11 @@ public class playerController : MonoBehaviour
         readyToSlide = true;
 
         iceplant_seed = null;
+
+        if (panel != null)
+        {
+            panel.gameObject.SetActive(false);
+        }
     }
 
     // Update is called once per frame
@@ -154,6 +159,7 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
+                    slidePlayerAnimation(75f);
 
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
@@ -205,7 +211,8 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-
+                    slidePlayerAnimation(75f);
+                    
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
                 }
@@ -215,6 +222,10 @@ public class playerController : MonoBehaviour
                 }
             }
         }
+        else
+        {
+            currentDirection = Vector2.zero;
+        }
 
         if (readyToJump)
         {
@@ -223,7 +234,7 @@ public class playerController : MonoBehaviour
         }
         else
         {
-            rb.AddForce(Vector3.down, ForceMode2D.Force);
+            rb.AddForce(Vector2.down, ForceMode2D.Force);
         }
 
         // if our speed has drastically changed
