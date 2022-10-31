@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
@@ -9,11 +10,15 @@ using Vector3 = UnityEngine.Vector3;
 
 public class playerController : MonoBehaviour
 {
+    public AudioSource audioSource;
+    public AudioClip win_clip;
+    
     [Header("UI")] 
     public GameObject panel;
     public TextMeshProUGUI speed;
     public Sprite seed_key;
     public List<Image> key_display;
+    public Animator sceneTransition;
     private int count;
     
     [Header("Player Config")] 
@@ -100,6 +105,8 @@ public class playerController : MonoBehaviour
         boxCD = GetComponent<CapsuleCollider2D>();
         originalBoxCD = boxCD;
         playerAnimator = GetComponent<Animator>();
+
+        audioSource = GetComponent<AudioSource>();
     }
 
     // Update is called once per frame
@@ -125,7 +132,7 @@ public class playerController : MonoBehaviour
             }
         }
 
-        speed.text = "Speed: " + Mathf.FloorToInt(rb.velocity.magnitude);
+        speed.text = "Speed: " + Mathf.Ceil(rb.velocity.magnitude);
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
 
         if (inputManager.jump() && isGrounded)
@@ -389,7 +396,6 @@ public class playerController : MonoBehaviour
             }
             else if(!levelFinished)
             {
-                Debug.Break();
                 SetUpFinalPuzzle(); 
             }
         }
@@ -439,12 +445,19 @@ public class playerController : MonoBehaviour
 
     private void FinishLevel()
     {
+        audioSource.clip = win_clip;
+        audioSource.Play();
+        
         for (int i = 0; i < key_display.Count; i++)
         {
             key_display[i].gameObject.SetActive(false);
         }
         levelFinished = true;
         StartCoroutine(openDoor(final_door));
+        StartCoroutine(decreaseFontSize());
+        hint_text.GetComponent<TextMeshPro>().text = "Congrats, You win!";
+        StartCoroutine(increaseFontSize());
+        
         // final_door.transform.rotation = Quaternion.Euler(90f, 0f,0f);
     }
     
@@ -475,7 +488,26 @@ public class playerController : MonoBehaviour
             hint_text.GetComponent<TextMeshPro>().fontSize = font_size;
             yield return null;
         }
-        
+
+        if (levelFinished)
+        {
+            sceneTransition.SetTrigger("exit");
+            
+            yield return new WaitForSeconds(3.5f);
+            SceneManager.LoadScene("Main Menu");
+        }
+    }
+    
+    private IEnumerator decreaseFontSize()
+    {
+        float font_size = 12;
+
+        while (font_size > 0)
+        {
+            font_size -= Time.fixedDeltaTime * 4f;
+            hint_text.GetComponent<TextMeshPro>().fontSize = font_size;
+            yield return null;
+        }
     }
 
     private IEnumerator openDoor(GameObject obj)
@@ -488,7 +520,5 @@ public class playerController : MonoBehaviour
             obj.transform.rotation = Quaternion.Euler(rot, 0f, 0f);
             yield return null;
         }
-        
-        StopAllCoroutines();
     }
 }
