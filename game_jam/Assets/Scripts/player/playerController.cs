@@ -20,6 +20,7 @@ public class playerController : MonoBehaviour
     public float walkSpeed;
     public float jumpForce;
     public float speedMultiplier;
+    public Animator playerAnimator;
 
     [Header("Slope Config")] 
     public float downSlopeMultiplier;
@@ -49,6 +50,8 @@ public class playerController : MonoBehaviour
     [Header("Components")] 
     public Rigidbody2D rb;
     public LayerMask Ground;
+    public CapsuleCollider2D boxCD;
+    private CapsuleCollider2D originalBoxCD;
 
     private RaycastHit2D slopeHit;
 
@@ -93,6 +96,10 @@ public class playerController : MonoBehaviour
         }
 
         count = 0;
+
+        boxCD = GetComponent<CapsuleCollider2D>();
+        originalBoxCD = boxCD;
+        playerAnimator = GetComponent<Animator>();
     }
 
     // Update is called once per frame
@@ -120,19 +127,25 @@ public class playerController : MonoBehaviour
 
         speed.text = "Speed: " + rb.velocity.magnitude;
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
-        
-        if (inputManager.jump() && isGrounded)
-            readyToJump = true;
 
-        if (inputManager.slide())
+        if (inputManager.jump() && isGrounded)
+        {
+            playerAnimator.SetTrigger("Jump");
+            readyToJump = true;
+        }
+
+        if (inputManager.slide() && slideTimer > 0)
             isSliding = true;
         else
             isSliding = false;
 
-        if (slideTimer < maxSlideTimer && isGrounded && !isSliding && !inputManager.slide())
+        if (slideTimer < maxSlideTimer && isGrounded && !isSliding)
         {
-            slideTimer = maxSlideTimer;
-            slidePlayerAnimation(0);
+            Debug.Log("done sliding");
+            if(!inputManager.slide())
+                slideTimer = maxSlideTimer;
+            resetBoxCD();
+            playerAnimator.SetTrigger("Stop Sliding");
         }
     }
 
@@ -142,6 +155,8 @@ public class playerController : MonoBehaviour
 
         if (inputManager.moveLeft())
         {
+            transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            playerAnimator.SetTrigger("Run");
             currentDirection = Vector2.left;
             
             slopeDirection = GetSlopeMoveDirection(currentDirection);
@@ -159,6 +174,8 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     currentSpeed += slideDownSlopeMultipier;
                     
@@ -181,7 +198,8 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
@@ -193,6 +211,9 @@ public class playerController : MonoBehaviour
             }
         }else if (inputManager.moveRight())
         {
+            transform.rotation = Quaternion.Euler(0f, 0, 0f);
+            playerAnimator.SetTrigger("Run");
+            
             currentDirection = Vector2.right;
             slopeDirection = GetSlopeMoveDirection(currentDirection);
             
@@ -213,6 +234,8 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     currentSpeed += slideDownSlopeMultipier;
 
@@ -233,8 +256,9 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
-                    
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
+
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
                 }
@@ -246,6 +270,7 @@ public class playerController : MonoBehaviour
         }
         else
         {
+            playerAnimator.SetTrigger("Stop Running");
             currentDirection = Vector2.zero;
         }
 
@@ -255,6 +280,8 @@ public class playerController : MonoBehaviour
             
             rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
             readyToJump = false;
+            
+            playerAnimator.SetTrigger("Land");
         }
         else
         {
@@ -425,6 +452,18 @@ public class playerController : MonoBehaviour
     private void OnDeath()
     {
         transform.position = checkpointPos;
+    }
+
+    private void decreaseBoxCD()
+    {
+        boxCD.offset = new Vector2(boxCD.offset.x, -4.401974f);
+        boxCD.size = new Vector2(boxCD.size.x,4.958592f);
+    }
+
+    private void resetBoxCD()
+    {
+        boxCD.offset = new Vector2(boxCD.offset.x,0.5878139f);
+        boxCD.size = new Vector2(boxCD.size.x, 15.49737f);
     }
 
     private IEnumerator increaseFontSize()
