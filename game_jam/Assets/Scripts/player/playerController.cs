@@ -69,6 +69,11 @@ public class playerController : MonoBehaviour
         readyToSlide = true;
 
         iceplant_seed = null;
+
+        if (panel != null)
+        {
+            panel.gameObject.SetActive(false);
+        }
     }
 
     // Update is called once per frame
