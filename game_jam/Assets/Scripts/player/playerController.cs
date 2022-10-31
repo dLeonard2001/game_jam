@@ -1,6 +1,5 @@
-using System;
 using System.Collections;
-using System.Numerics;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,7 +13,8 @@ public class playerController : MonoBehaviour
     public GameObject panel;
     public TextMeshProUGUI speed;
     public Sprite seed_key;
-    public Image key_display;
+    public List<Image> key_display;
+    private int count;
     
     [Header("Player Config")] 
     public float walkSpeed;
@@ -58,6 +58,23 @@ public class playerController : MonoBehaviour
     public GameObject iceplant_seed;
     public iceseed seed_script;
 
+    [Header("Checkpoints")] 
+    public GameObject lastKnownCheckpoint;
+    private Vector3 checkpointPos;
+
+    [Header("Final Puzzle")] 
+    public GameObject SeedGameObject;
+    public Sprite seed;
+    public List<GameObject> first_area_possible_locations;
+    public List<GameObject> second_area_possible_locations;
+    public List<GameObject> third_area_possible_locations;
+    public GameObject final_door;
+    public GameObject hint_text;
+    private Vector3 seed_spawn_location;
+    private bool finalPuzzleIsActive;
+
+    private bool levelFinished;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -74,13 +91,15 @@ public class playerController : MonoBehaviour
         {
             panel.gameObject.SetActive(false);
         }
+
+        count = 0;
     }
 
     // Update is called once per frame
     void Update()
     {
         if(inputManager.pause())
-            pauseGame(isPaused);
+            pauseGame();
 
         if (isPaused)
             return;
@@ -91,8 +110,11 @@ public class playerController : MonoBehaviour
             Vector3 distanceToMound = transform.position - moundPos;
             if (distanceToMound.magnitude < 2f)
             {
-                key_display.gameObject.SetActive(false);
+                count--;
+                Debug.Log(count);
+                key_display[count].gameObject.SetActive(false);
                 seed_script.PuzzleSolved();
+                iceplant_seed = null;
             }
         }
 
@@ -229,15 +251,9 @@ public class playerController : MonoBehaviour
 
         if (readyToJump)
         {
-            if (OnSlope())
-            {
-                rb.AddForce(( 2 * Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
-            }
-            else
-            {
-                rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
-            }
+            currentSpeed += jumpForce - currentSpeed;
             
+            rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
             readyToJump = false;
         }
         else
@@ -316,44 +332,125 @@ public class playerController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D col)
     {
-        if (col.CompareTag("iceplant_seed"))
+        if (col.CompareTag("void"))
         {
-            iceplant_seed = col.gameObject;
-            seed_script = iceplant_seed.GetComponent<iceseed>();
-
-            key_display.sprite = seed_key;
-            key_display.gameObject.SetActive(true);
-
+            OnDeath();
+        }
+        else if (col.CompareTag("iceplant_seed"))
+        {
+            if (!finalPuzzleIsActive)
+            {
+                iceplant_seed = col.gameObject;
+                seed_script = iceplant_seed.GetComponent<iceseed>();
+            }
+            
+            key_display[count].sprite = seed_key;
+            key_display[count].gameObject.SetActive(true);
+            
+            count++;
             col.gameObject.SetActive(false);
+        }
+        else if (col.CompareTag("checkpoint"))
+        {
+            lastKnownCheckpoint = col.gameObject;
+            checkpointPos = lastKnownCheckpoint.transform.position;
+        }
+        else if (col.CompareTag("final_puzzle"))
+        {
+            if (count == key_display.Count && !levelFinished)
+            {
+                FinishLevel();
+            }
+            else if(!levelFinished)
+            {
+                SetUpFinalPuzzle(); 
+            }
         }
     }
 
-    private void pauseGame(bool status)
+    public void pauseGame()
     {
-        if (panel == null)
-        {
-            return;
-        }
-        
-        if (status)
+        if (isPaused)
         {
             Cursor.visible = false;
             Cursor.lockState = CursorLockMode.Locked;
-            
-            isPaused = false;
-            panel.SetActive(false);
 
-            Time.timeScale = 1;
+            isPaused = false;
         }
         else
         {
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.Confined;
-            
-            isPaused = true;
-            panel.SetActive(true);
 
-            Time.timeScale = 0;
+            isPaused = true;
         }
+    }
+    
+    public void SetUpFinalPuzzle()
+    {
+        StartCoroutine(increaseFontSize());
+        
+        Debug.Log("setting up final puzzle");
+        finalPuzzleIsActive = true;
+        
+        int num = Random.Range(0, first_area_possible_locations.Count);
+        seed_spawn_location = first_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        num = Random.Range(0, second_area_possible_locations.Count);
+        seed_spawn_location = second_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        num = Random.Range(0, third_area_possible_locations.Count);
+        seed_spawn_location = third_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        SeedGameObject.SetActive(false);
+    }
+
+    private void FinishLevel()
+    {
+        for (int i = 0; i < key_display.Count; i++)
+        {
+            key_display[i].gameObject.SetActive(false);
+        }
+        levelFinished = true;
+        StartCoroutine(openDoor(final_door));
+        // final_door.transform.rotation = Quaternion.Euler(90f, 0f,0f);
+    }
+    
+    private void OnDeath()
+    {
+        transform.position = checkpointPos;
+    }
+
+    private IEnumerator increaseFontSize()
+    {
+        float font_size = 0;
+
+        while (font_size < 12)
+        {
+            font_size += Time.fixedDeltaTime * 4f;
+            hint_text.GetComponent<TextMeshPro>().fontSize = font_size;
+            yield return null;
+        }
+        
+    }
+
+    private IEnumerator openDoor(GameObject obj)
+    {
+        float rot = 0;
+
+        while (rot < 90f)
+        {
+            rot += Time.fixedDeltaTime * 4f;
+            obj.transform.rotation = Quaternion.Euler(rot, 0f, 0f);
+            yield return null;
+        }
+        
+        StopAllCoroutines();
     }
 }

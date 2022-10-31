@@ -19,12 +19,6 @@ public class iceseed : MonoBehaviour
         mound_pos = mound.transform.position;
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     public void PuzzleSolved()
     {
         bridge.SetActive(true);
