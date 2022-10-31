@@ -107,7 +107,7 @@ public class playerController : MonoBehaviour
         else
             isSliding = false;
 
-        if (slideTimer < maxSlideTimer && isGrounded && !isSliding)
+        if (slideTimer < maxSlideTimer && isGrounded && !isSliding && !inputManager.slide())
         {
             slideTimer = maxSlideTimer;
             slidePlayerAnimation(0);
@@ -229,7 +229,15 @@ public class playerController : MonoBehaviour
 
         if (readyToJump)
         {
-            rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
+            if (OnSlope())
+            {
+                rb.AddForce(( 2 * Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
+            }
+            else
+            {
+                rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
+            }
+            
             readyToJump = false;
         }
         else
@@ -322,6 +330,11 @@ public class playerController : MonoBehaviour
 
     private void pauseGame(bool status)
     {
+        if (panel == null)
+        {
+            return;
+        }
+        
         if (status)
         {
             Cursor.visible = false;
