@@ -1,6 +1,5 @@
-using System;
 using System.Collections;
-using System.Numerics;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,12 +13,14 @@ public class playerController : MonoBehaviour
     public GameObject panel;
     public TextMeshProUGUI speed;
     public Sprite seed_key;
-    public Image key_display;
+    public List<Image> key_display;
+    private int count;
     
     [Header("Player Config")] 
     public float walkSpeed;
     public float jumpForce;
     public float speedMultiplier;
+    public Animator playerAnimator;
 
     [Header("Slope Config")] 
     public float downSlopeMultiplier;
@@ -49,6 +50,8 @@ public class playerController : MonoBehaviour
     [Header("Components")] 
     public Rigidbody2D rb;
     public LayerMask Ground;
+    public CapsuleCollider2D boxCD;
+    private CapsuleCollider2D originalBoxCD;
 
     private RaycastHit2D slopeHit;
 
@@ -57,6 +60,23 @@ public class playerController : MonoBehaviour
     [Header("Puzzle Inventory")] 
     public GameObject iceplant_seed;
     public iceseed seed_script;
+
+    [Header("Checkpoints")] 
+    public GameObject lastKnownCheckpoint;
+    private Vector3 checkpointPos;
+
+    [Header("Final Puzzle")] 
+    public GameObject SeedGameObject;
+    public Sprite seed;
+    public List<GameObject> first_area_possible_locations;
+    public List<GameObject> second_area_possible_locations;
+    public List<GameObject> third_area_possible_locations;
+    public GameObject final_door;
+    public GameObject hint_text;
+    private Vector3 seed_spawn_location;
+    private bool finalPuzzleIsActive;
+
+    private bool levelFinished;
 
     // Start is called before the first frame update
     void Start()
@@ -74,13 +94,19 @@ public class playerController : MonoBehaviour
         {
             panel.gameObject.SetActive(false);
         }
+
+        count = 0;
+
+        boxCD = GetComponent<CapsuleCollider2D>();
+        originalBoxCD = boxCD;
+        playerAnimator = GetComponent<Animator>();
     }
 
     // Update is called once per frame
     void Update()
     {
         if(inputManager.pause())
-            pauseGame(isPaused);
+            pauseGame();
 
         if (isPaused)
             return;
@@ -91,26 +117,35 @@ public class playerController : MonoBehaviour
             Vector3 distanceToMound = transform.position - moundPos;
             if (distanceToMound.magnitude < 2f)
             {
-                key_display.gameObject.SetActive(false);
+                count--;
+                Debug.Log(count);
+                key_display[count].gameObject.SetActive(false);
                 seed_script.PuzzleSolved();
+                iceplant_seed = null;
             }
         }
 
         speed.text = "Speed: " + rb.velocity.magnitude;
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
-        
-        if (inputManager.jump() && isGrounded)
-            readyToJump = true;
 
-        if (inputManager.slide())
+        if (inputManager.jump() && isGrounded)
+        {
+            playerAnimator.SetTrigger("Jump");
+            readyToJump = true;
+        }
+
+        if (inputManager.slide() && slideTimer > 0)
             isSliding = true;
         else
             isSliding = false;
 
         if (slideTimer < maxSlideTimer && isGrounded && !isSliding)
         {
-            slideTimer = maxSlideTimer;
-            slidePlayerAnimation(0);
+            Debug.Log("done sliding");
+            if(!inputManager.slide())
+                slideTimer = maxSlideTimer;
+            resetBoxCD();
+            playerAnimator.SetTrigger("Stop Sliding");
         }
     }
 
@@ -120,6 +155,8 @@ public class playerController : MonoBehaviour
 
         if (inputManager.moveLeft())
         {
+            transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            playerAnimator.SetTrigger("Run");
             currentDirection = Vector2.left;
             
             slopeDirection = GetSlopeMoveDirection(currentDirection);
@@ -137,6 +174,8 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     currentSpeed += slideDownSlopeMultipier;
                     
@@ -159,7 +198,8 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.left, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
@@ -171,6 +211,9 @@ public class playerController : MonoBehaviour
             }
         }else if (inputManager.moveRight())
         {
+            transform.rotation = Quaternion.Euler(0f, 0, 0f);
+            playerAnimator.SetTrigger("Run");
+            
             currentDirection = Vector2.right;
             slopeDirection = GetSlopeMoveDirection(currentDirection);
             
@@ -191,6 +234,8 @@ public class playerController : MonoBehaviour
             {
                 if (slopeDirection.y < 0 && isSliding)
                 {
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
 
                     currentSpeed += slideDownSlopeMultipier;
 
@@ -211,8 +256,9 @@ public class playerController : MonoBehaviour
             {
                 if (isSliding && slideTimer > 0)
                 {
-                    slidePlayerAnimation(75f);
-                    
+                    decreaseBoxCD();
+                    playerAnimator.SetTrigger("Slide");
+
                     rb.AddForce(currentSpeed * speedMultiplier * Vector2.right, ForceMode2D.Impulse);
                     slideTimer -= Time.fixedDeltaTime;
                 }
@@ -224,13 +270,18 @@ public class playerController : MonoBehaviour
         }
         else
         {
+            playerAnimator.SetTrigger("Stop Running");
             currentDirection = Vector2.zero;
         }
 
         if (readyToJump)
         {
+            currentSpeed += jumpForce - currentSpeed;
+            
             rb.AddForce((Vector2.up + currentDirection) * currentSpeed, ForceMode2D.Impulse);
             readyToJump = false;
+            
+            playerAnimator.SetTrigger("Land");
         }
         else
         {
@@ -308,39 +359,137 @@ public class playerController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D col)
     {
-        if (col.CompareTag("iceplant_seed"))
+        if (col.CompareTag("void"))
         {
-            iceplant_seed = col.gameObject;
-            seed_script = iceplant_seed.GetComponent<iceseed>();
-
-            key_display.sprite = seed_key;
-            key_display.gameObject.SetActive(true);
-
+            OnDeath();
+        }
+        else if (col.CompareTag("iceplant_seed"))
+        {
+            if (!finalPuzzleIsActive)
+            {
+                iceplant_seed = col.gameObject;
+                seed_script = iceplant_seed.GetComponent<iceseed>();
+            }
+            
+            key_display[count].sprite = seed_key;
+            key_display[count].gameObject.SetActive(true);
+            
+            count++;
             col.gameObject.SetActive(false);
+        }
+        else if (col.CompareTag("checkpoint"))
+        {
+            lastKnownCheckpoint = col.gameObject;
+            checkpointPos = lastKnownCheckpoint.transform.position;
+        }
+        else if (col.CompareTag("final_puzzle"))
+        {
+            if (count == key_display.Count && !levelFinished)
+            {
+                FinishLevel();
+            }
+            else if(!levelFinished)
+            {
+                SetUpFinalPuzzle(); 
+            }
         }
     }
 
-    private void pauseGame(bool status)
+    public void pauseGame()
     {
-        if (status)
+        if (isPaused)
         {
             Cursor.visible = false;
             Cursor.lockState = CursorLockMode.Locked;
-            
-            isPaused = false;
-            panel.SetActive(false);
 
-            Time.timeScale = 1;
+            isPaused = false;
         }
         else
         {
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.Confined;
-            
-            isPaused = true;
-            panel.SetActive(true);
 
-            Time.timeScale = 0;
+            isPaused = true;
         }
+    }
+    
+    public void SetUpFinalPuzzle()
+    {
+        StartCoroutine(increaseFontSize());
+        
+        Debug.Log("setting up final puzzle");
+        finalPuzzleIsActive = true;
+        
+        int num = Random.Range(0, first_area_possible_locations.Count);
+        seed_spawn_location = first_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        num = Random.Range(0, second_area_possible_locations.Count);
+        seed_spawn_location = second_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        num = Random.Range(0, third_area_possible_locations.Count);
+        seed_spawn_location = third_area_possible_locations[num].transform.position;
+        SeedGameObject.transform.position = seed_spawn_location;
+        Instantiate(SeedGameObject);
+        
+        SeedGameObject.SetActive(false);
+    }
+
+    private void FinishLevel()
+    {
+        for (int i = 0; i < key_display.Count; i++)
+        {
+            key_display[i].gameObject.SetActive(false);
+        }
+        levelFinished = true;
+        StartCoroutine(openDoor(final_door));
+        // final_door.transform.rotation = Quaternion.Euler(90f, 0f,0f);
+    }
+    
+    private void OnDeath()
+    {
+        transform.position = checkpointPos;
+    }
+
+    private void decreaseBoxCD()
+    {
+        boxCD.offset = new Vector2(boxCD.offset.x, -4.401974f);
+        boxCD.size = new Vector2(boxCD.size.x,4.958592f);
+    }
+
+    private void resetBoxCD()
+    {
+        boxCD.offset = new Vector2(boxCD.offset.x,0.5878139f);
+        boxCD.size = new Vector2(boxCD.size.x, 15.49737f);
+    }
+
+    private IEnumerator increaseFontSize()
+    {
+        float font_size = 0;
+
+        while (font_size < 12)
+        {
+            font_size += Time.fixedDeltaTime * 4f;
+            hint_text.GetComponent<TextMeshPro>().fontSize = font_size;
+            yield return null;
+        }
+        
+    }
+
+    private IEnumerator openDoor(GameObject obj)
+    {
+        float rot = 0;
+
+        while (rot < 90f)
+        {
+            rot += Time.fixedDeltaTime * 4f;
+            obj.transform.rotation = Quaternion.Euler(rot, 0f, 0f);
+            yield return null;
+        }
+        
+        StopAllCoroutines();
     }
 }

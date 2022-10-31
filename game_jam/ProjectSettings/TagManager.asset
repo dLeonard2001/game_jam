@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - iceplant_seed
+  - checkpoint
+  - void
+  - final_puzzle
   layers:
   - Default
   - TransparentFX
