@@ -125,7 +125,7 @@ public class playerController : MonoBehaviour
             }
         }
 
-        speed.text = "Speed: " + rb.velocity.magnitude;
+        speed.text = "Speed: " + Mathf.FloorToInt(rb.velocity.magnitude);
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 1, Ground);
 
         if (inputManager.jump() && isGrounded)
@@ -389,6 +389,7 @@ public class playerController : MonoBehaviour
             }
             else if(!levelFinished)
             {
+                Debug.Break();
                 SetUpFinalPuzzle(); 
             }
         }
